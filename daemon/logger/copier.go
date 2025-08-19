@@ -30,14 +30,16 @@ type Copier struct {
 	copyJobs  sync.WaitGroup
 	closeOnce sync.Once
 	closed    chan struct{}
+	location  *time.Location
 }
 
 // NewCopier creates a new Copier
-func NewCopier(srcs map[string]io.Reader, dst Logger) *Copier {
+func NewCopier(srcs map[string]io.Reader, dst Logger, location *time.Location) *Copier {
 	return &Copier{
-		srcs:   srcs,
-		dst:    dst,
-		closed: make(chan struct{}),
+		srcs:     srcs,
+		dst:      dst,
+		closed:   make(chan struct{}),
+		location: location,
 	}
 }
 
@@ -120,7 +122,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 						hasMorePartial = false
 					}
 					if msg.PLogMetaData == nil {
-						msg.Timestamp = time.Now().UTC()
+						msg.Timestamp = time.Now().In(c.location)
 					} else {
 						msg.Timestamp = partialTS
 					}
@@ -145,7 +147,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					// Record timestamp for first partial. Use it across partials.
 					// Initialize Ordinal for first partial. Increment it across partials.
 					if firstPartial {
-						msg.Timestamp = time.Now().UTC()
+						msg.Timestamp = time.Now().In(c.location)
 						partialTS = msg.Timestamp
 						partialid = stringid.GenerateRandomID()
 						ordinal = 1

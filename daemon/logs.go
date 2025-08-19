@@ -183,6 +183,10 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 		cfg.Config = make(map[string]string)
 	}
 
+	if cfg.Timezone == "" {
+		cfg.Timezone = daemon.defaultLogConfig.Timezone
+	}
+
 	if cfg.Type == daemon.defaultLogConfig.Type {
 		for k, v := range daemon.defaultLogConfig.Config {
 			if _, ok := cfg.Config[k]; !ok {
@@ -193,19 +197,20 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 
 	logcache.MergeDefaultLogConfig(cfg.Config, daemon.defaultLogConfig.Config)
 
-	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
+	return logger.ValidateLogOpts(cfg.Type, cfg.Config, cfg.Timezone)
 }
 
 func (daemon *Daemon) setupDefaultLogConfig() error {
 	config := daemon.configStore
-	if len(config.LogConfig.Config) > 0 {
-		if err := logger.ValidateLogOpts(config.LogConfig.Type, config.LogConfig.Config); err != nil {
+	if len(config.LogConfig.Config) > 0 || config.LogConfig.Timezone != "" {
+		if err := logger.ValidateLogOpts(config.LogConfig.Type, config.LogConfig.Config, config.LogConfig.Timezone); err != nil {
 			return errors.Wrap(err, "failed to set log opts")
 		}
 	}
 	daemon.defaultLogConfig = containertypes.LogConfig{
-		Type:   config.LogConfig.Type,
-		Config: config.LogConfig.Config,
+		Type:     config.LogConfig.Type,
+		Timezone: config.LogConfig.Timezone,
+		Config:   config.LogConfig.Config,
 	}
 
 	logrus.Debugf("Using default logging driver %s", daemon.defaultLogConfig.Type)
